@@ -1,5 +1,5 @@
-import React from "react";
 import { getInitials } from "../../utils/helper";
+import PropTypes from "prop-types";
 
 const ProfileInfo = ({ onLogout }) => {
   return (
@@ -16,6 +16,10 @@ const ProfileInfo = ({ onLogout }) => {
       </div>
     </div>
   );
+};
+
+ProfileInfo.propTypes = {
+  onLogout: PropTypes.func,
 };
 
 export default ProfileInfo;
