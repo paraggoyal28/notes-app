@@ -3,7 +3,6 @@ import jwt from "jsonwebtoken";
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
   const token = authHeader?.split(" ");
-  console.log(token);
   if (!token) {
     return res.sendStatus(401);
   }

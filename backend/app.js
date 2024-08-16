@@ -4,7 +4,7 @@ dotenv.config({ silent: process.env.NODE_ENV === "development" });
 import * as connectionString from "./config.json" assert { type: "json" };
 import { connect } from "mongoose";
 connect(connectionString["default"]["connectionString"]);
-
+import bcrypt from "bcrypt";
 import User from "./models/user.model.js";
 import Note from "./models/note.model.js";
 
@@ -47,7 +47,7 @@ app.post("/create-account", async (req, res) => {
       .json({ error: true, message: "Password is required" });
   }
 
-  const isUser = await findOne({ email: email });
+  const isUser = await User.findOne({ email: email });
 
   if (isUser) {
     return res.json({
@@ -56,10 +56,12 @@ app.post("/create-account", async (req, res) => {
     });
   }
 
+  const encryptedPassword = bcrypt.hashSync(password, 10);
+
   const user = new User({
     fullName,
     email,
-    password,
+    password: encryptedPassword,
   });
 
   await user.save();
@@ -87,12 +89,15 @@ app.post("/login", async (req, res) => {
     return res.status(400).json({ message: "Password is required " });
   }
 
-  const userInfo = await findOne({ email: email });
+  const userInfo = await User.findOne({ email: email });
   if (!userInfo) {
     return res.status(400).json({ message: "User not found" });
   }
 
-  if (userInfo.email === email && userInfo.password === password) {
+  if (
+    userInfo.email === email &&
+    bcrypt.compareSync(password, userInfo.password)
+  ) {
     const user = { user: userInfo };
     const accessToken = sign(user, process.env.ACCESS_TOKEN_SECRET, {
       expiresIn: "3600m",
@@ -110,6 +115,26 @@ app.post("/login", async (req, res) => {
       message: "Invalid credentials",
     });
   }
+});
+
+// Get User
+app.get("/get-user", authenticateToken, async (req, res) => {
+  const { user } = req.user;
+
+  const isUser = await User.findOne({ _id: user._id });
+
+  if (!isUser) {
+    return res.sendStatus(401);
+  }
+  return res.json({
+    user: {
+      fullName: isUser.fullName,
+      email: isUser.email,
+      _id: isUser._id,
+      createdOn: isUser.createdOn,
+    },
+    message: "",
+  });
 });
 
 // Add Note
@@ -199,6 +224,31 @@ app.get("/get-all-notes/", authenticateToken, async (req, res) => {
       error: false,
       notes,
       message: "All notes retrieved successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: "Internal Server Error",
+    });
+  }
+});
+
+app.delete("/delete-note/:noteId", authenticateToken, async (req, res) => {
+  const noteId = req.params.noteId;
+  const { user } = req.user;
+
+  try {
+    const note = await Note.findOne({ _id: noteId, userId: user._id });
+
+    if (!note) {
+      return res.status(404).json({ error: true, message: "Note not found" });
+    }
+
+    await Note.deleteOne({ _id: noteId, userId: user._id });
+
+    return res.json({
+      error: false,
+      message: "Note deleted successfully",
     });
   } catch (error) {
     return res.status(500).json({
