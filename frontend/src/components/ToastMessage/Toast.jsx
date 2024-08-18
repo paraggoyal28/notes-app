@@ -19,6 +19,7 @@ const Toast = ({ isShown, message, type, onClose }) => {
       className={`absolute top-20 right-6 transition-all duration-400 ${
         isShown ? "opacity-100" : "opacity-0"
       }`}
+      data-testid="Toast"
     >
       <div
         className={`min-w-52 bg-white border shadow-2xl rounded-md after:w-[5px] after:h-full ${
@@ -37,7 +38,9 @@ const Toast = ({ isShown, message, type, onClose }) => {
               <LuCheck className="text-xl text-green-500" />
             )}
           </div>
-          <p className="text-sm text-slate-800">{message}</p>
+          <p className="text-sm text-slate-800" data-testid="Toast-Message">
+            {message}
+          </p>
         </div>
       </div>
     </div>

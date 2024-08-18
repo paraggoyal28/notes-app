@@ -139,14 +139,14 @@ app.get("/get-user", authenticateToken, async (req, res) => {
 
 // Add Note
 app.post("/add-note", authenticateToken, async (req, res) => {
-  const { title, content, tags } = req.body;
+  const { title, content, tags, fileType, parentPath } = req.body;
   const { user } = req.user;
 
   if (!title) {
     return res.status(400).json({ error: true, message: "Title is required" });
   }
 
-  if (!content) {
+  if (!content && fileType === "File") {
     return res
       .status(400)
       .json({ error: true, message: "Content is required" });
@@ -155,9 +155,11 @@ app.post("/add-note", authenticateToken, async (req, res) => {
   try {
     const note = new Note({
       title,
-      content,
+      content: fileType === "Directory" ? "Directory" : content,
       tags: tags || [],
       userId: user._id,
+      type: fileType,
+      parentPath,
     });
 
     await note.save();
@@ -198,6 +200,7 @@ app.put("/edit-note/:noteId", authenticateToken, async (req, res) => {
     if (title) note.title = title;
     if (content) note.content = content;
     if (tags) note.tags = tags;
+    note.modifiedAt = new Date().getTime();
 
     await note.save();
 
@@ -216,9 +219,12 @@ app.put("/edit-note/:noteId", authenticateToken, async (req, res) => {
 
 app.get("/get-all-notes/", authenticateToken, async (req, res) => {
   const { user } = req.user;
-
+  const parentPath = req.query.parentPath;
   try {
-    const notes = await Note.find({ userId: user._id });
+    let notes = null;
+    if (parentPath !== "")
+      notes = await Note.find({ userId: user._id, parentPath: parentPath });
+    else notes = await Note.find({ userId: user._id });
 
     return res.json({
       error: false,
@@ -249,6 +255,42 @@ app.delete("/delete-note/:noteId", authenticateToken, async (req, res) => {
     return res.json({
       error: false,
       message: "Note deleted successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: "Internal Server Error",
+    });
+  }
+});
+
+app.put("/move-note/:noteId", authenticateToken, async (req, res) => {
+  const noteId = req.params.noteId;
+  const { user } = req.user;
+  const { newFolderPath } = req.body;
+
+  if (!newFolderPath) {
+    return res
+      .status(400)
+      .json({ error: true, message: "No changes provided" });
+  }
+
+  try {
+    const note = await Note.findOne({ _id: noteId, userId: user._id });
+
+    if (!note) {
+      return res.status(400).json({ error: true, message: "Note not found" });
+    }
+
+    if (newFolderPath) note.parentPath = newFolderPath;
+    note.modifiedAt = new Date().getTime();
+
+    await note.save();
+
+    return res.json({
+      error: false,
+      note,
+      message: "Note updated successfully",
     });
   } catch (error) {
     return res.status(500).json({

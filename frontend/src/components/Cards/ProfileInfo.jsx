@@ -14,6 +14,7 @@ const ProfileInfo = ({ userInfo, onLogout }) => {
           <button
             className="text-sm text-slate-700 underline"
             onClick={onLogout}
+            data-testid="Logout Button"
           >
             Logout
           </button>

@@ -62,6 +62,7 @@ const Login = () => {
           <form onSubmit={handleLogin}>
             <h4 className="text-2xl mb-7">Login</h4>
             <input
+              data-testid="Email"
               type="text"
               placeholder="Email"
               className="input-box"
@@ -73,8 +74,16 @@ const Login = () => {
               onChange={(e) => setPassword(e.target.value)}
             />
 
-            {error && <p className="text-red-500 text-xs pb-1">{error}</p>}
-            <button type="submit" className="btn-primary">
+            {error && (
+              <p className="text-red-500 text-xs pb-1" data-testid="Error">
+                {error}
+              </p>
+            )}
+            <button
+              data-testid="Login Button"
+              type="submit"
+              className="btn-primary"
+            >
               Login
             </button>
             <p className="text-sm text-center mt-4">

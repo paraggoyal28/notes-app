@@ -29,7 +29,6 @@ const SignUp = () => {
       setError("Please enter the password");
       return;
     }
-
     setError("");
 
     // Signup API Call
@@ -74,6 +73,7 @@ const SignUp = () => {
             <h4 className="text-2xl mb-7">SignUp</h4>
             <input
               type="text"
+              data-testid="Name"
               placeholder="Name"
               className="input-box"
               value={name}
@@ -81,6 +81,7 @@ const SignUp = () => {
             />
             <input
               type="text"
+              data-testid="Email"
               placeholder="Email"
               className="input-box"
               value={email}
@@ -90,9 +91,17 @@ const SignUp = () => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
-            {error && <p className="text-red-500 text-xs pb-1">{error}</p>}
+            {error && (
+              <p className="text-red-500 text-xs pb-1" data-testid="Error">
+                {error}
+              </p>
+            )}
 
-            <button type="submit" className="btn-primary">
+            <button
+              type="submit"
+              className="btn-primary"
+              data-testid="Sign Up Button"
+            >
               Create Account
             </button>
             <p className="text-sm text-center mt-4">

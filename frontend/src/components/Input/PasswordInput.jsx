@@ -13,6 +13,7 @@ const PasswordInput = ({ value, onChange, placeholder }) => {
     <div className="flex items-center bg-transparent border-[1.5px] px-5 rounded mb-3">
       <input
         value={value}
+        data-testid="Password"
         onChange={onChange}
         type={isShowPassword ? "text" : "password"}
         placeholder={placeholder || "Password"}

@@ -8,6 +8,13 @@ const noteSchema = new Schema({
   tags: { type: [String], default: [] },
   userId: { type: String, required: true },
   createdOn: { type: Date, default: new Date().getTime() },
+  modifiedAt: { type: Date, default: new Date().getTime() },
+  type: {
+    type: String,
+    enum: ["Directory", "File"],
+    default: "File",
+  },
+  parentPath: { type: String, default: "/" },
 });
 
 const Note = mongoose.model("Note", noteSchema);

@@ -9,6 +9,8 @@ const AddEditNotes = ({
   noteData,
   getAllNotes,
   type,
+  fileType,
+  parentPath,
   showToastMessage,
 }) => {
   const [title, setTitle] = useState(noteData?.title || "");
@@ -21,13 +23,16 @@ const AddEditNotes = ({
   const addNewNote = async () => {
     try {
       const response = await axiosInstance.post("/add-note", {
+        fileType,
         title,
         content,
         tags,
+        parentPath,
       });
 
       if (response.data && response.data.note) {
-        showToastMessage("Note Added Successfully");
+        if (fileType === "File") showToastMessage("Note Added Successfully");
+        else showToastMessage("Folder Created Successfully");
         getAllNotes();
         onClose();
       }
@@ -73,7 +78,7 @@ const AddEditNotes = ({
       setError("Please enter the title");
       return;
     }
-    if (!content) {
+    if (!content && fileType === "File") {
       setError("Please enter the content");
       return;
     }
@@ -97,37 +102,46 @@ const AddEditNotes = ({
       </button>
 
       <div className="flex flex-col gap-2">
-        <label className="input-label">TITLE</label>
+        <label className="input-label">
+          {fileType === "File" ? "TITLE" : "NAME"}
+        </label>
         <input
           type="text"
           className="text-2xl text-slate-950 outline-none"
           placeholder="Go to Gym At 5"
           value={title}
+          data-testid="Title"
           onChange={({ target }) => setTitle(target.value)}
         />
       </div>
 
-      <div className="flex flex-col gap-2 mt-4">
-        <label className="input-label">CONTENT</label>
-        <textarea
-          type="text"
-          className="text-sm text-slate-950 outline-none bg-slate-50 p-2 rounded"
-          placeholder="Content"
-          rows={10}
-          value={content}
-          onChange={({ target }) => setContent(target.value)}
-        />
-      </div>
+      {fileType === "File" && (
+        <div className="flex flex-col gap-2 mt-4">
+          <label className="input-label">CONTENT</label>
+          <textarea
+            type="text"
+            className="text-sm text-slate-950 outline-none bg-slate-50 p-2 rounded"
+            placeholder="Content"
+            rows={10}
+            data-testid="Content"
+            value={content}
+            onChange={({ target }) => setContent(target.value)}
+          />
+        </div>
+      )}
 
-      <div className="mt-3">
-        <label className="input-label">TAGS</label>
-        <TagInput tags={tags} setTags={setTags} />
-      </div>
+      {fileType === "File" && (
+        <div className="mt-3">
+          <label className="input-label">TAGS</label>
+          <TagInput tags={tags} setTags={setTags} />
+        </div>
+      )}
 
       {error && <p className="text-red-500 text-xs pt-4">{error}</p>}
       <button
         className="btn btn-primary font-medium mt-5 p-3"
         onClick={handleAddNote}
+        data-testid="SubmitBtn"
       >
         {type === "edit" ? "UPDATE" : "ADD"}
       </button>
@@ -141,6 +155,8 @@ AddEditNotes.propTypes = {
   noteData: PropTypes.string,
   getAllNotes: PropTypes.func,
   showToastMessage: PropTypes.func,
+  fileType: PropTypes.string,
+  parentPath: PropTypes.string,
 };
 
 export default AddEditNotes;
