@@ -14,6 +14,7 @@ import AddNote from "../../assets/addNote.png";
 import Folder from "../../components/Folder/Folder";
 import TreeStructure from "../../components/TreeStructure/TreeStructure";
 import MoveFile from "../../components/Folder/MoveFile";
+import ShareFile from "../../components/Folder/ShareFile";
 
 const Home = () => {
   const [openAddEditModel, setOpenAddEditModel] = useState({
@@ -28,6 +29,13 @@ const Home = () => {
     data: null,
   });
 
+  const [openShareModel, setOpenShareModel] = useState({
+    isShown: false,
+    data: null,
+  });
+
+  const [mp, setMp] = useState(new Map());
+
   const [parentPath, setParentPath] = useState("/");
 
   const [showToastMsg, setShowToastMsg] = useState({
@@ -37,12 +45,16 @@ const Home = () => {
   });
 
   const [userInfo, setUserInfo] = useState(null);
-  const [allNotes, setAllNotes] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [fullNotes, setFullNotes] = useState([]);
 
   const navigate = useNavigate();
 
   const handleEdit = (noteDetails) => {
+    if (noteDetails.userId !== userInfo._id) {
+      showToastMessage("User not allowed to edit", "delete");
+      return;
+    }
     setOpenAddEditModel({
       isShown: true,
       type: "edit",
@@ -52,7 +64,22 @@ const Home = () => {
   };
 
   const handleMove = (noteDetails) => {
+    if (noteDetails.userId !== userInfo._id) {
+      showToastMessage("User not allowed to move", "delete");
+      return;
+    }
     setOpenMoveModel({
+      isShown: true,
+      data: noteDetails,
+    });
+  };
+
+  const handleShare = (noteDetails) => {
+    if (noteDetails.userId !== userInfo._id) {
+      showToastMessage("User not allowed to share", "delete");
+      return;
+    }
+    setOpenShareModel({
       isShown: true,
       data: noteDetails,
     });
@@ -88,21 +115,17 @@ const Home = () => {
     }
   };
 
-  // Get all notes
-  const getAllNotes = async (parentPath) => {
+  // Get all users
+  const getAllUsers = async () => {
     try {
-      const response = await axiosInstance.get(
-        "/get-all-notes?parentPath=" + parentPath
-      );
-
-      if (response.data && response.data.notes) {
-        setAllNotes(response.data.notes);
+      const response = await axiosInstance.get("/get-all-users");
+      if (response?.data?.users) {
+        setAllUsers(response.data.users);
       }
     } catch (error) {
-      if (error) {
-        console.log(error);
+      if (error.response.status === 401) {
+        console.log(error.response.message);
       }
-      console.log("An unexpected error occurred. Try again later.");
     }
   };
 
@@ -129,16 +152,12 @@ const Home = () => {
         newFolderPath: newParentPath,
       });
 
-      if (response.data && response.data.note) {
+      if (response?.data?.note) {
         showToastMessage("Note Moved Successfully");
-        getAllNotes(parentPath);
+        getFullNotes();
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
+      if (error?.response?.data?.message) {
         console.log(error.response.data.message);
       }
     }
@@ -146,76 +165,140 @@ const Home = () => {
 
   // Delete Note
   const deleteNote = async (data) => {
+    if (data.userId !== userInfo.id) {
+      showToastMessage("User not allowed to delete", "delete");
+    }
     const noteId = data._id;
     try {
       const response = await axiosInstance.delete("/delete-note/" + noteId);
 
       if (response.data && !response.data.error) {
         showToastMessage("Note Deleted Successfully", "delete");
-        getAllNotes(parentPath);
+        getFullNotes();
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
+      if (error?.response?.data?.message) {
+        console.log(error.response.data.message);
+      }
+    }
+  };
+
+  // Share Note
+  const shareNote = async (noteId, users) => {
+    try {
+      const response = await axiosInstance.put("/share-note/" + noteId, {
+        users: users,
+      });
+
+      if (response?.data?.note) {
+        showToastMessage("Note Shared Successfully");
+        getFullNotes();
+      }
+    } catch (error) {
+      if (error?.response?.data?.message) {
         console.log(error.response.data.message);
       }
     }
   };
 
   useEffect(() => {
-    getAllNotes(parentPath);
+    getAllUsers();
     getUserInfo();
     getFullNotes();
-
-    return () => {};
   }, []);
 
   useEffect(() => {
-    getFullNotes();
-  }, [allNotes]);
+    let aMp = new Map();
+
+    fullNotes.forEach((note) => {
+      let ls = [];
+      const parentPath =
+        userInfo && note.userId !== userInfo._id ? "/" : note.parentPath;
+      if (aMp.has(parentPath)) {
+        ls = aMp.get(parentPath);
+      }
+
+      ls.push(note);
+      aMp.set(parentPath, ls);
+    });
+    setMp(aMp);
+  }, [fullNotes]);
+
+  const sharedNotes = fullNotes?.filter(
+    (note) =>
+      note.type === "File" &&
+      parentPath === "/" &&
+      userInfo &&
+      note.userId !== userInfo._id
+  );
+
+  const sameUserNotes = mp
+    .get(parentPath)
+    ?.filter((note) => userInfo && note.userId === userInfo._id);
 
   return (
     <>
       <Navbar userInfo={userInfo} />
       <div className="flex" data-testid="Home">
         <div className="container basis-1/3  ml-5 mt-5">
-          <TreeStructure
-            fullNotes={fullNotes}
-            setParentPath={setParentPath}
-            getAllNotes={getAllNotes}
-          />
+          {fullNotes?.length > 0 && (
+            <TreeStructure mp={mp} setParentPath={setParentPath} />
+          )}
         </div>
         <div className="container basis-2/3 mx-auto">
-          {allNotes.length > 0 ? (
-            <div className="grid grid-cols-3 gap-4 mt-8">
-              {allNotes.map((item) => {
-                return item.type === "File" ? (
-                  <NoteCard
-                    key={item._id}
-                    title={item.title}
-                    date={item.createdOn}
-                    content={item.content}
-                    updatedAt={item.updatedAt}
-                    tags={item.tags}
-                    onEdit={() => handleEdit(item)}
-                    onDelete={() => deleteNote(item)}
-                    onMoveFile={() => handleMove(item)}
-                  />
-                ) : (
-                  <Folder
-                    key={item._id}
-                    title={item.title}
-                    handleOpenFolder={() => {
-                      getAllNotes(parentPath + item.title + "/");
-                      setParentPath(parentPath + item.title + "/");
-                    }}
-                  />
-                );
-              })}
-            </div>
+          {sameUserNotes?.length > 0 || sharedNotes?.length > 0 ? (
+            <>
+              <div className="grid grid-cols-3 gap-4 mt-8">
+                {sameUserNotes?.map((item) => {
+                  return item.type === "File" ? (
+                    <NoteCard
+                      key={item._id}
+                      title={item.title}
+                      date={item.createdOn}
+                      content={item.content}
+                      updatedAt={item.updatedAt}
+                      tags={item.tags}
+                      isShared={false}
+                      onEdit={() => handleEdit(item)}
+                      onDelete={() => deleteNote(item)}
+                      onMoveFile={() => handleMove(item)}
+                      onShare={() => handleShare(item)}
+                    />
+                  ) : (
+                    <Folder
+                      key={item._id}
+                      title={item.title}
+                      handleOpenFolder={() => {
+                        setParentPath(parentPath + item.title + "/");
+                      }}
+                    />
+                  );
+                })}
+              </div>
+              {parentPath == "/" && (
+                <>
+                  <h1 className="mt-8"> Shared Files </h1>
+
+                  <div className="mt-4 grid grid-cols-3 gap-4">
+                    {sharedNotes.map((item) => (
+                      <NoteCard
+                        key={item._id}
+                        title={item.title}
+                        date={item.createdOn}
+                        content={item.content}
+                        updatedAt={item.updatedAt}
+                        tags={item.tags}
+                        isShared={true}
+                        onEdit={() => handleEdit(item)}
+                        onDelete={() => deleteNote(item)}
+                        onMoveFile={() => handleMove(item)}
+                        onShare={() => handleShare(item)}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           ) : (
             <EmptyCard
               imgSrc={AddNote}
@@ -260,7 +343,6 @@ const Home = () => {
             data-testid="BackBtn"
             onClick={() => {
               const path = parentPath.split("/").slice(0, -2).join("/") + "/";
-              getAllNotes(path);
               setParentPath(path);
             }}
           >
@@ -276,6 +358,7 @@ const Home = () => {
             backgroundColor: "rgba(0,0,0,0.2)",
           },
         }}
+        ariaHideApp={false}
         contentLabel=""
         className="w-[40%] max-h-3/4 bg-white rounded-md mx-auto mt-14 p-5 overflow-scroll"
       >
@@ -291,7 +374,7 @@ const Home = () => {
             });
           }}
           fileType={openAddEditModel.fileType}
-          getAllNotes={() => getAllNotes(parentPath)}
+          getFullNotes={getFullNotes}
           showToastMessage={showToastMessage}
           parentPath={parentPath}
         />
@@ -305,6 +388,7 @@ const Home = () => {
             backgroundColor: "rgba(0,0,0,0.2)",
           },
         }}
+        ariaHideApp={false}
         contentLabel=""
         className="w-[40%] max-h-3/4 bg-white rounded-md mx-auto mt-14 p-5 overflow-scroll"
       >
@@ -314,6 +398,27 @@ const Home = () => {
           fullNotes={fullNotes}
           parentPath={parentPath}
           moveFile={moveNote}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={openShareModel.isShown}
+        onRequestClose={() => {}}
+        style={{
+          overlay: {
+            backgroundColor: "rgba(0,0,0,0.2)",
+          },
+        }}
+        ariaHideApp={false}
+        contentLabel=""
+        className="w-[40%] max-h-3/4 bg-white rounded-md mx-auto mt-14 p-5 overflow-scroll"
+      >
+        <ShareFile
+          noteData={openShareModel.data}
+          onClose={() => setOpenShareModel({ isShown: false, data: null })}
+          currentUser={userInfo}
+          allUsers={allUsers}
+          shareFile={shareNote}
         />
       </Modal>
 

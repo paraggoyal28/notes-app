@@ -7,7 +7,7 @@ import axiosInstance from "../../utils/axiosInstance";
 const AddEditNotes = ({
   onClose,
   noteData,
-  getAllNotes,
+  getFullNotes,
   type,
   fileType,
   parentPath,
@@ -30,18 +30,14 @@ const AddEditNotes = ({
         parentPath,
       });
 
-      if (response.data && response.data.note) {
+      if (response?.data?.note) {
         if (fileType === "File") showToastMessage("Note Added Successfully");
         else showToastMessage("Folder Created Successfully");
-        getAllNotes();
+        getFullNotes();
         onClose();
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
+      if (error?.response?.data?.message) {
         setError(error.response.data.message);
       }
     }
@@ -57,17 +53,13 @@ const AddEditNotes = ({
         tags,
       });
 
-      if (response.data && response.data.note) {
+      if (response?.data?.note) {
         showToastMessage("Note Updated Successfully");
-        getAllNotes();
+        getFullNotes();
         onClose();
       }
     } catch (error) {
-      if (
-        error.response &&
-        error.response.data &&
-        error.response.data.message
-      ) {
+      if (error?.response?.data?.message) {
         setError(error.response.data.message);
       }
     }
@@ -153,7 +145,7 @@ AddEditNotes.propTypes = {
   onClose: PropTypes.func,
   type: PropTypes.string,
   noteData: PropTypes.string,
-  getAllNotes: PropTypes.func,
+  getFullNotes: PropTypes.func,
   showToastMessage: PropTypes.func,
   fileType: PropTypes.string,
   parentPath: PropTypes.string,

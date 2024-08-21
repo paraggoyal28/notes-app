@@ -117,6 +117,40 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.put("/forgot-password", async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  if (!password) {
+    return res.status(400).json({ message: "Password is required " });
+  }
+
+  const user = await User.findOne({ email: email });
+  if (!user) {
+    return res.status(400).json({ message: "User not found" });
+  }
+
+  const encryptedPassword = bcrypt.hashSync(password, 10);
+
+  user.password = encryptedPassword;
+
+  await user.save();
+
+  const accessToken = sign({ user }, process.env.ACCESS_TOKEN_SECRET, {
+    expiresIn: "36000m",
+  });
+
+  return res.json({
+    error: false,
+    user,
+    accessToken,
+    message: "Password Saved Successful",
+  });
+});
+
 // Get User
 app.get("/get-user", authenticateToken, async (req, res) => {
   const { user } = req.user;
@@ -217,14 +251,38 @@ app.put("/edit-note/:noteId", authenticateToken, async (req, res) => {
   }
 });
 
+app.get("/get-all-users", authenticateToken, async (req, res) => {
+  try {
+    const users = await User.find({});
+    return res.json({
+      error: false,
+      users: users,
+      message: "All users retrieved successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: "Internal Server Error",
+    });
+  }
+});
+
 app.get("/get-all-notes/", authenticateToken, async (req, res) => {
   const { user } = req.user;
   const parentPath = req.query.parentPath;
   try {
     let notes = null;
     if (parentPath !== "")
-      notes = await Note.find({ userId: user._id, parentPath: parentPath });
-    else notes = await Note.find({ userId: user._id });
+      notes = await Note.find({
+        $or: [
+          { userId: user._id, parentPath: parentPath },
+          { sharedUsers: user._id, parentPath: parentPath },
+        ],
+      });
+    else
+      notes = await Note.find({
+        $or: [{ userId: user._id }, { sharedUsers: user._id }],
+      });
 
     return res.json({
       error: false,
@@ -300,8 +358,46 @@ app.put("/move-note/:noteId", authenticateToken, async (req, res) => {
   }
 });
 
+app.put("/share-note/:noteId", authenticateToken, async (req, res) => {
+  const noteId = req.params.noteId;
+  const { user } = req.user;
+  const { users } = req.body;
+
+  if (!users || users.length === 0) {
+    return res
+      .status(400)
+      .json({ error: true, message: "No changes provided" });
+  }
+
+  try {
+    const note = await Note.findOne({ _id: noteId, userId: user._id });
+
+    if (!note) {
+      return res.status(400).json({ error: true, message: "Note not found" });
+    }
+
+    const existingSharedUsers = note.sharedUsers;
+    const finalSharedUsers = [...new Set(...existingSharedUsers, users)];
+    note.sharedUsers = finalSharedUsers;
+    note.modifiedAt = new Date().getTime();
+
+    await note.save();
+
+    return res.json({
+      error: false,
+      note,
+      message: "Note Shared successfully",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: true,
+      message: "Internal Server Error",
+    });
+  }
+});
+
 app.listen(8000, () => {
-  console.log("Server started at port 8080");
+  console.log("Server started at port 8000");
 });
 
 export default app;

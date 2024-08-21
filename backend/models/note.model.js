@@ -15,6 +15,7 @@ const noteSchema = new Schema({
     default: "File",
   },
   parentPath: { type: String, default: "/" },
+  sharedUsers: { type: [String], default: [] },
 });
 
 const Note = mongoose.model("Note", noteSchema);
