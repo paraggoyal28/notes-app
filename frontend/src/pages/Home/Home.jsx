@@ -275,7 +275,7 @@ const Home = () => {
                   );
                 })}
               </div>
-              {parentPath == "/" && (
+              {parentPath == "/" && sharedNotes?.length > 0 && (
                 <>
                   <h1 className="mt-8"> Shared Files </h1>
 

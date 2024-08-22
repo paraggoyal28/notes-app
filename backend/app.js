@@ -145,7 +145,7 @@ app.put("/forgot-password", async (req, res) => {
 
   return res.json({
     error: false,
-    user,
+    email,
     accessToken,
     message: "Password Saved Successful",
   });
